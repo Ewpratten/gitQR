@@ -3,7 +3,7 @@
 // @version  1
 // @grant    none
 // @author   Evan Pratten <ewpratten>
-// @require  https://raw.githubusercontent.com/davidshimjs/qrcodejs/master/qrcode.min.js
+// @require  https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js
 // ==/UserScript==
 
 // Consts
@@ -15,7 +15,9 @@ console.log("Loaded GitQR");
 
 console.log("Injecting QR generator option into website");
 
-document.getElementsByClassName("reponav")[0].innerHTML += '<a class="js-selected-navigation-item reponav-item"  href="#" id="gitQRButton"> GitQR</a> <div id="qrcode"></div>'
+// Add Hooks for QR code generation button
+//document.getElementsByClassName("reponav")[0].innerHTML += '<canvas id="qrcode"></canvas>'
+document.getElementsByClassName("btn btn-outline get-repo-btn")[0].parentElement.innerHTML += '<a class="btn btn-outline get-repo-btn" href="#"  id="gitQRButton">GitQR</a> <canvas id="qrcode"></canvas>'
 document.getElementById("gitQRButton").addEventListener("click", gitQR);
 
 // Get the repo info
@@ -23,7 +25,7 @@ var reponame = document.title.split(":")[0];
 var zip_link = "https://github.com/" + reponame + zip_path
 console.log("Detected repo: "+ reponame)
 
-
+// Buffer to b64
 function arrayBufferToBase64( buffer ) {
     var binary = '';
     var bytes = new Uint8Array( buffer );
@@ -32,8 +34,35 @@ function arrayBufferToBase64( buffer ) {
         binary += String.fromCharCode( bytes[ i ] );
     }
     return window.btoa( binary );
+  //return binary;
 }
 
+
+function imToBlob(a){
+  // atob to base64_decode the data-URI
+    var image_data = atob(a.split(',')[1]);
+    // Use typed arrays to convert the binary data to a Blob
+    var arraybuffer = new ArrayBuffer(image_data.length);
+    var view = new Uint8Array(arraybuffer);
+    for (var i=0; i<image_data.length; i++) {
+        view[i] = image_data.charCodeAt(i) & 0xff;
+    }
+    try {
+        // This is the recommended method:
+        var blob = new Blob([arraybuffer], {type: 'application/octet-stream'});
+    } catch (e) {
+        // The BlobBuilder API has been deprecated in favour of Blob, but older
+        // browsers don't know about the Blob constructor
+        // IE10 also supports BlobBuilder, but since the `Blob` constructor
+        //  also works, there's no need to add `MSBlobBuilder`.
+        var bb = new (window.WebKitBlobBuilder || window.MozBlobBuilder);
+        bb.append(arraybuffer);
+        var blob = bb.getBlob('application/octet-stream'); // <-- Here's the Blob
+    }
+
+    // Use the URL object to create a temporary URL
+    return  (window.webkitURL || window.URL).createObjectURL(blob);
+}
 
 
 function gitQR(){
@@ -46,18 +75,23 @@ function gitQR(){
   req.responseType = "arraybuffer";
 
   req.onload = function (oEvent) {
-    var data = arrayBufferToBase64(req.response); 
-    data = "temp data"
-    
-    console.log(data);
+    var data = arrayBufferToBase64(req.response);     
     
     // Gen QR code
     console.log("Creating QR code");
-    var qrcode = new QRCode(document.getElementById("qrcode"), {
-      text: data,
-      colorDark : "#000000",
-      colorLight : "#ffffff",
+    var qrcode = new QRious({
+      element: document.getElementById("qrcode"), 
+      value: data,
+      size: 400,
+      level: "M",
+      padding: 5
     });
+    
+    //console.log(qrcode.toDataURL());
+    
+    console.log("GitQR finished");
+    //window.open(qrcode.toDataURL()).focus();
+    //location.href = imToBlob(qrcode.toDataURL());
     
     
     
